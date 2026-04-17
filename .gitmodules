@@ -1,0 +1,6 @@
+[submodule "pico-cpp-sdk"]
+	path = pico-cpp-sdk
+	url = https://github.com/EthanNT1000/pico-cpp-sdk.git
+[submodule "FreeRTOS-Kernel"]
+	path = FreeRTOS-Kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
