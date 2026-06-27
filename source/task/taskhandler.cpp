@@ -18,6 +18,7 @@
 
 #include "microrospublishtask.h"
 #include "cansendtask.h"
+#include "uarttesttask.h"
 
 char unique_id_str[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2 + 1];
 rclc_support_t support;
@@ -27,6 +28,7 @@ rcl_publisher_t nodeIdPublisher;
 TaskHandle_t microRosMainTaskHandle;
 MicroRosPublishTask* microRosPublishTask;
 CANSendTask* canSendTask;
+UartTestTask* uartTestTask;
 
 /**
  * @brief Handler in case our application overflows the stack
@@ -59,6 +61,7 @@ void createTasks() {
         "MicroRosPublishTask", 2048, TaskInterface::Priority::Medium, 100);
     canSendTask = new CANSendTask(mcp2515, "CANSendTask", 2048,
         TaskInterface::Priority::Medium, 100);
+    uartTestTask = new UartTestTask("UartTestTask", 1024, TaskInterface::Priority::Medium);
 }
 
 void runTimeStats(void *arg) {

@@ -58,6 +58,7 @@ add_executable(app
     source/task/taskhandler.cpp
     source/task/cansendtask.cpp
     source/task/microrospublishtask.cpp
+    source/task/uarttesttask.cpp
 )
 
 target_include_directories(app PRIVATE
