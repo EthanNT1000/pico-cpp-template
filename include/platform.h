@@ -27,4 +27,9 @@
 #define ENCODER_SPI_MISO 12
 #define ENCODER_SPI_MOSI 11
 
+#define MAVLINK_UART_PORT uart1
+#define MAVLINK_UART_BAUDRATE 57600
+#define MAVLINK_UART_TX 8
+#define MAVLINK_UART_RX 9
+
 #endif

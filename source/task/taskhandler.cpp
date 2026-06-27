@@ -140,34 +140,43 @@ void wifiConnectTask(void* arg) {
     }
 }
 
-// Custom allocation functions using FreeRTOS heap
-static void * microros_allocate(size_t size, void * state) {
-    (void)state;  // Unused in FreeRTOS heap
-    return pvPortMalloc(size);
+// Static memory pool for micro-ROS. Sized to cover node, publisher, subscriber,
+// executor, and timer allocations. Increase if rclc init prints alloc failures.
+static uint8_t  micro_ros_pool[8192];
+static size_t   micro_ros_pool_head = 0;
+
+static void* microros_allocate(size_t size, void* state) {
+    (void)state;
+    size = (size + 7) & ~7;  // 8-byte align
+    if (micro_ros_pool_head + size > sizeof(micro_ros_pool)) {
+        return nullptr;
+    }
+    void* ptr = micro_ros_pool + micro_ros_pool_head;
+    micro_ros_pool_head += size;
+    return ptr;
 }
 
-static void microros_deallocate(void * pointer, void * state) {
+static void microros_deallocate(void* pointer, void* state) {
     (void)state;
-    vPortFree(pointer);
+    (void)pointer;
+    // Bump allocator: never frees. micro-ROS objects live for the program lifetime.
 }
 
-static void * microros_zero_allocate(size_t number_of_elements, size_t size_of_element, void * state) {
-    (void)state;
-    void * ptr = pvPortMalloc(number_of_elements * size_of_element);
+static void* microros_zero_allocate(size_t number_of_elements, size_t size_of_element, void* state) {
+    void* ptr = microros_allocate(number_of_elements * size_of_element, state);
     if (ptr) {
         memset(ptr, 0, number_of_elements * size_of_element);
     }
     return ptr;
 }
 
-static void* mrcroros_reallocate(void* pv, size_t xWantedSize, void* state) {
-    (void)state;
-        void * ptr = pvPortMalloc(xWantedSize);
-    if (ptr) {
-        memcpy(ptr, pv, xWantedSize);
-        vPortFree(pv);
-    }
-    return ptr;
+static void* microros_reallocate(void* pv, size_t xWantedSize, void* state) {
+    // Bump allocator never frees, so old memory is still valid — no copy needed.
+    // micro-ROS only calls this to grow executor arrays; pre-size the executor
+    // with enough handles so this is never reached.
+    (void)pv;
+    configASSERT(false && "reallocate called — increase executor handle count in rclc_executor_init");
+    return nullptr;
 }
 
 
@@ -203,7 +212,7 @@ void microRosMainTask(void* arg) {
     rcl_allocator_t freeRTOS_allocator  = rcutils_get_zero_initialized_allocator();
     freeRTOS_allocator.allocate      = microros_allocate;
     freeRTOS_allocator.deallocate    = microros_deallocate;
-    freeRTOS_allocator.reallocate    = mrcroros_reallocate;
+    freeRTOS_allocator.reallocate    = microros_reallocate;
     freeRTOS_allocator.zero_allocate = microros_zero_allocate;
 
     rcl_ret_t ret;
