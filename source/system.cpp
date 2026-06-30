@@ -13,7 +13,6 @@
 #include "hardware/sync.h"
 
 SPI* mcp2515Spi;
-Mcp2515* mcp2515;
 uint8_t nodeId;
 
 void initSystem() {
@@ -27,7 +26,6 @@ void initSystem() {
         MCP2515_PIN_CS, MCP2515_PIN_SCK,
         MCP2515_PIN_MOSI, MCP2515_PIN_MISO, false,
         SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST, true);
-    mcp2515 = new Mcp2515(mcp2515Spi, MCP2515_PIN_INT, MCP2515_OSCILLATOR, MCP2515_BITRATE);
 }
 
 // CRC-16/CCITT-FALSE polynomial 0x1021, initial 0xFFFF

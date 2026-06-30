@@ -19,6 +19,8 @@
 #include "microrospublishtask.h"
 #include "cansendtask.h"
 
+#include "cantesttask.h"
+
 char unique_id_str[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2 + 1];
 rclc_support_t support;
 rcl_node_t node;
@@ -26,6 +28,7 @@ rcl_publisher_t nodeIdPublisher;
 
 TaskHandle_t microRosMainTaskHandle;
 MicroRosPublishTask* microRosPublishTask;
+Mcp2515Task* mcp2515;
 CANSendTask* canSendTask;
 
 /**
@@ -57,8 +60,12 @@ void createTasks() {
 
     microRosPublishTask = new MicroRosPublishTask(
         "MicroRosPublishTask", 2048, TaskInterface::Priority::Medium, 100);
-    canSendTask = new CANSendTask(mcp2515, "CANSendTask", 2048,
-        TaskInterface::Priority::Medium, 100);
+
+    mcp2515 = new Mcp2515Task(mcp2515Spi, MCP2515_PIN_INT, MCP2515_OSCILLATOR, MCP2515_BITRATE);
+    // canSendTask = new CANSendTask(mcp2515, "CANSendTask", 2048,
+    //     TaskInterface::Priority::Medium, 100);
+    CANTestTask* canTestTask = new CANTestTask(mcp2515, "CANTestTask", 1024,
+        TaskInterface::Priority::Medium);
 }
 
 void runTimeStats(void *arg) {

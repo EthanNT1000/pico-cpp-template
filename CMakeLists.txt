@@ -52,9 +52,11 @@ set(PICO_FLASH_SIZE_BYTES "0x1FF000")
 # Add executable. Default name is the project name, version 0.1
 add_executable(app
     app.cpp
+    pico-cpp-sdk/source/gpio.cpp
     pico-cpp-sdk/source/dma.cpp
     pico-cpp-sdk/source/spi.cpp
     pico-cpp-sdk/source/mcp2515.cpp
+    pico-cpp-sdk/source/mcp2515Task.cpp
     pico-cpp-sdk/source/taskinterface.cpp
     pico-cpp-sdk/source/udp_transport.cpp
     pico-cpp-sdk/source/posix_time.c
@@ -62,6 +64,7 @@ add_executable(app
     source/task/taskhandler.cpp
     source/task/cansendtask.cpp
     source/task/microrospublishtask.cpp
+    test/can-receive-test/cantesttask.cpp
 )
 
 # Add the standard include files to the build
@@ -70,6 +73,7 @@ target_include_directories(app PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/task
     ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/can-receive-test
 )
 
 # Add the standard library to the build

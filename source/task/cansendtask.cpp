@@ -5,14 +5,13 @@
 #include "taskhandler.h"
 #include "system.h"
 
-CANSendTask::CANSendTask(Mcp2515* mcp2515, const char* pcName, const configSTACK_DEPTH_TYPE usStackDepth,
+CANSendTask::CANSendTask(Mcp2515Task* mcp2515, const char* pcName, const configSTACK_DEPTH_TYPE usStackDepth,
     Priority uxPriority, uint8_t queueSize) : _mcp2515(mcp2515),
     TaskInterface(pcName, usStackDepth, uxPriority, xQueueCreate(queueSize, sizeof(TransmitMsg_t))) {
 }
 
 void CANSendTask::run() {
     _mcp2515->initialInTask();
-
     while (1) {
         TransmitMsg_t msg;
         xQueueReceive(rxQueue, &msg, portMAX_DELAY);

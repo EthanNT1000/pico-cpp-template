@@ -3,10 +3,9 @@
 
 #include <cstdint>
 #include "spi.h"
-#include "mcp2515.h"
+#include "mcp2515Task.h"
 
 extern SPI* mcp2515Spi;
-extern Mcp2515* mcp2515;
 extern uint8_t nodeId;
 
 enum class TransmitDataType : uint8_t {
