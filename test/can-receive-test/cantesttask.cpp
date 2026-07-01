@@ -26,8 +26,25 @@ void CANTestTask::run() {
         }
         printf("\n");
 
-        // Echo back with ID + 1 so the Python script can verify receipt
-        uint32_t echoId = canId | 0x400;  // high bit set — guaranteed no collision with sender IDs
+        // ID 0x000 is the control channel — always accepted (default filter 1 = 0x000).
+        // data[0]=0x00 → accept-all  0x01 → std filter test  0x02 → ext filter test
+        if (canId == 0x000 && len >= 1) {
+            if (buf[0] == 0x01) {
+                _mcp2515->setMask(0, 0x7FF);             _mcp2515->setFilter(0, 0x100);
+                _mcp2515->setMask(1, 0x7FF);             _mcp2515->setFilter(2, 0x200);
+                printf("[CAN TEST] std filter ON (RXB0=0x100 RXB1=0x200)\n");
+            } else if (buf[0] == 0x02) {
+                _mcp2515->setMask(0, 0x1FFFFFFF, true);  _mcp2515->setFilter(0, 0x1ABCDEF, true);
+                _mcp2515->setMask(1, 0x1FFFFFFF, true);  _mcp2515->setFilter(2, 0x1234567, true);
+                printf("[CAN TEST] ext filter ON (RXB0=0x1ABCDEF RXB1=0x1234567)\n");
+            } else if (buf[0] == 0x00) {
+                _mcp2515->setMask(0, 0x000);
+                _mcp2515->setMask(1, 0x000);
+                printf("[CAN TEST] filter OFF (accept-all)\n");
+            }
+        }
+
+        uint32_t echoId = canId | 0x400;
         _mcp2515->txBuffer0SendInTask(echoId, buf, len);
         printf("[CAN TX] Echo ID:0x%03lX\n", echoId);
     }

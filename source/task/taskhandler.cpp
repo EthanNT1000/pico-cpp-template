@@ -65,7 +65,7 @@ void createTasks() {
     // canSendTask = new CANSendTask(mcp2515, "CANSendTask", 2048,
     //     TaskInterface::Priority::Medium, 100);
     CANTestTask* canTestTask = new CANTestTask(mcp2515, "CANTestTask", 1024,
-        TaskInterface::Priority::Medium);
+        TaskInterface::Priority::Medium, Mcp2515::RxBufferType::Rollover);
 }
 
 void runTimeStats(void *arg) {

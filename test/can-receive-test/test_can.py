@@ -47,6 +47,25 @@ def send_and_wait_echo(bus: can.BusABC, msg: can.Message, label: str) -> bool:
     return False
 
 
+def verify_no_echo(bus: can.BusABC, msg: can.Message, label: str, timeout: float = 0.3) -> bool:
+    """Send a frame and verify the Pico does NOT echo it (filter rejected it)."""
+    rejected_echo_id = msg.arbitration_id | 0x400
+    bus.send(msg)
+    print(f"  SENT  [{label}] ID:0x{msg.arbitration_id:03X} (expect: filtered)")
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        rx = bus.recv(timeout=deadline - time.monotonic())
+        if rx is None:
+            break
+        if rx.arbitration_id == rejected_echo_id:
+            print(f"  FAIL  [{label}] got unexpected echo ID:0x{rx.arbitration_id:03X} ✗")
+            return False
+
+    print(f"  OK    [{label}] correctly filtered — no echo ✓")
+    return True
+
+
 def run_tests(channel: str, filter_test: bool):
     bus = can.interface.Bus(channel=channel, bustype="socketcan")
     print(f"Connected to {channel} at {BITRATE // 1000} kbps\n")
@@ -86,21 +105,67 @@ def run_tests(channel: str, filter_test: bool):
 
     # ── Test 5: Filter (only when --filter flag passed) ───────────────────
     if filter_test:
-        print("\n  [Filter test — Independent mode required on Pico]")
-        # Pico should be configured with:
-        #   mcp2515->setMask(0, 0x7FF);        // exact match on RXB0
-        #   mcp2515->setFilter(0, 0x400);       // only accept 0x400 in RXB0
-        #   mcp2515->setMask(1, 0x7FF);
-        #   mcp2515->setFilter(2, 0x500);       // only accept 0x500 in RXB1
+        print("\n  [Filter test]")
 
-        allowed  = can.Message(arbitration_id=0x400, data=[0xAA], is_extended_id=False)
-        rejected = can.Message(arbitration_id=0x123, data=[0xBB], is_extended_id=False)
+        # Ask Pico to configure filters (ID=0x000 data=[0x01]).
+        # ID 0x000 always passes because MCP2515 filter slot 1 defaults to 0x000
+        # and is never overwritten, so it acts as a permanent control channel.
+        cmd_on  = can.Message(arbitration_id=0x000, data=[0x01], is_extended_id=False)
+        cmd_off = can.Message(arbitration_id=0x000, data=[0x00], is_extended_id=False)
 
-        bus.send(rejected)
-        print(f"  SENT  [Filter-rejected] ID:0x123")
-        time.sleep(0.1)
+        if not send_and_wait_echo(bus, cmd_on, "Filter-enter"):
+            print("  SKIP  filter test (Pico did not ACK filter setup)")
+            results.append(False)
+        else:
+            time.sleep(0.05)
 
-        results.append(send_and_wait_echo(bus, allowed, "Filter-allowed"))
+            # 5a: RXB0 filter (0x100) → expect echo
+            msg = can.Message(arbitration_id=0x100, data=[0xAA], is_extended_id=False)
+            results.append(send_and_wait_echo(bus, msg, "Filter RXB0-allowed"))
+            time.sleep(0.05)
+
+            # 5b: RXB1 filter (0x200) → expect echo
+            msg = can.Message(arbitration_id=0x200, data=[0xCC], is_extended_id=False)
+            results.append(send_and_wait_echo(bus, msg, "Filter RXB1-allowed"))
+            time.sleep(0.05)
+
+            # 5c: rejected frame → must NOT be echoed
+            msg = can.Message(arbitration_id=0x300, data=[0xBB], is_extended_id=False)
+            results.append(verify_no_echo(bus, msg, "Filter-rejected"))
+            time.sleep(0.05)
+
+            # Reset filters so subsequent tests (if any) are unaffected
+            results.append(send_and_wait_echo(bus, cmd_off, "Filter-exit"))
+
+    # ── Test 6: Extended ID Filter (only when --filter flag passed) ───────
+    if filter_test:
+        print("\n  [Extended ID filter test]")
+
+        cmd_on  = can.Message(arbitration_id=0x000, data=[0x02], is_extended_id=False)
+        cmd_off = can.Message(arbitration_id=0x000, data=[0x00], is_extended_id=False)
+
+        if not send_and_wait_echo(bus, cmd_on, "ExtFilter-enter"):
+            print("  SKIP  ext filter test (Pico did not ACK)")
+            results.append(False)
+        else:
+            time.sleep(0.05)
+
+            # 6a: RXB0 extended filter (0x1ABCDEF) → expect echo
+            msg = can.Message(arbitration_id=0x1ABCDEF, data=[0xAA], is_extended_id=True)
+            results.append(send_and_wait_echo(bus, msg, "ExtFilter RXB0-allowed"))
+            time.sleep(0.05)
+
+            # 6b: RXB1 extended filter (0x1234567) → expect echo
+            msg = can.Message(arbitration_id=0x1234567, data=[0xCC], is_extended_id=True)
+            results.append(send_and_wait_echo(bus, msg, "ExtFilter RXB1-allowed"))
+            time.sleep(0.05)
+
+            # 6c: non-matching extended ID → must NOT be echoed
+            msg = can.Message(arbitration_id=0x1111111, data=[0xBB], is_extended_id=True)
+            results.append(verify_no_echo(bus, msg, "ExtFilter-rejected"))
+            time.sleep(0.05)
+
+            results.append(send_and_wait_echo(bus, cmd_off, "ExtFilter-exit"))
 
     # ── Summary ───────────────────────────────────────────────────────────
     passed = sum(results)
